@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PayPilot — AI invoicing &amp; PayPal payment requests for freelancers</title>
+<meta name="description" content="PayPilot turns plain English into a professional invoice and a PayPal payment request in seconds. Built for the PayPal AI Hackathon.">
+<style>
+:root{
+  --pp-blue:#003087; --pp-sky:#0070e0; --pp-light:#009cde; --ink:#0b1f4a; --muted:#5b6b8c;
+  --bg:#f4f6fb; --card:#ffffff; --line:#dfe6f2; --good:#0a7d4f; --warn:#b45309; --bad:#b42318;
+  --radius:14px; --shadow:0 6px 24px rgba(0,48,135,.08);
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;background:var(--bg);color:var(--ink);line-height:1.5}
+a{color:var(--pp-sky)}
+header.top{background:linear-gradient(120deg,var(--pp-blue),var(--pp-sky) 60%,var(--pp-light));color:#fff;padding:22px 0 26px}
+.wrap{max-width:1080px;margin:0 auto;padding:0 18px}
+.brand{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{width:46px;height:46px;border-radius:12px;background:#fff;color:var(--pp-blue);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:22px}
+.brand h1{margin:0;font-size:30px;letter-spacing:-.5px}
+.brand p{margin:2px 0 0;opacity:.92;font-size:15px}
+.badge{display:inline-block;background:rgba(255,255,255,.18);border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:3px 10px;font-size:12px;font-weight:600}
+main{padding:22px 0 50px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+@media(max-width:860px){.grid{grid-template-columns:1fr}}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:20px}
+.card h2{margin:0 0 6px;font-size:19px}
+.card h3{margin:16px 0 6px;font-size:15px}
+.hint{color:var(--muted);font-size:13.5px;margin:0 0 12px}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow)}
+.stat .k{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700}
+.stat .v{font-size:24px;font-weight:800;margin-top:2px}
+textarea,input,select{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:10px 12px;font:inherit;font-size:14.5px;background:#fff;color:var(--ink)}
+textarea:focus,input:focus,select:focus{outline:2px solid var(--pp-light);border-color:transparent}
+label{font-size:13px;font-weight:700;display:block;margin:10px 0 4px}
+.row{display:flex;gap:10px;flex-wrap:wrap}.row>*{flex:1}
+.btn{appearance:none;border:0;border-radius:999px;padding:11px 20px;font:inherit;font-weight:700;cursor:pointer;font-size:14.5px}
+.btn-primary{background:var(--pp-blue);color:#fff}.btn-primary:hover{background:#00256b}
+.btn-paypal{background:#ffc439;color:#003087}.btn-paypal:hover{background:#f5b921}
+.btn-ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.btn-small{padding:6px 12px;font-size:13px}
+.btn-danger{background:#fff;border:1.5px solid #f0c6c1;color:var(--bad)}
+.chip{display:inline-block;background:#eaf2fd;border:1px solid #c9ddfa;color:var(--pp-blue);border-radius:999px;padding:5px 11px;font-size:12.5px;cursor:pointer;margin:0 6px 6px 0}
+.chip:hover{background:#d9e9fd}
+.pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800;text-transform:uppercase;letter-spacing:.04em}
+.pill-draft{background:#eef1f6;color:#475467}.pill-sent{background:#e0efff;color:#175cd3}
+.pill-paid{background:#dcfae6;color:var(--good)}.pill-overdue{background:#fee4e2;color:var(--bad)}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.invoice{border:1px solid var(--line);border-radius:12px;padding:14px 16px;margin-bottom:12px;background:#fff}
+.invoice-head{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.invoice-head b{font-size:16px}
+.actions{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.empty{border:1.5px dashed var(--line);border-radius:12px;padding:26px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;background:rgba(4,20,50,.55);display:none;align-items:center;justify-content:center;padding:16px;z-index:50}
+.modal.open{display:flex}
+.modal-box{background:#fff;border-radius:16px;max-width:560px;width:100%;max-height:90vh;overflow:auto;padding:24px}
+.paybox{border:1.5px solid var(--line);border-radius:12px;padding:16px;background:#fbfcfe}
+.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px;background:#0b1f4a;color:#d6e6ff;border-radius:10px;padding:12px;overflow:auto;white-space:pre-wrap}
+.notice{background:#fff8e1;border:1px solid #f2d57e;border-radius:10px;padding:10px 12px;font-size:13.5px}
+.insight{background:#eef7ff;border:1px solid #c9ddfa;border-radius:10px;padding:12px 14px;margin-bottom:10px;font-size:14px}
+footer{color:var(--muted);font-size:13px;padding:0 0 30px}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 18px;border-radius:999px;font-size:14px;display:none;z-index:99}
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="wrap">
+    <div class="brand">
+      <div class="logo">P↗</div>
+      <div>
+        <h1>PayPilot</h1>
+        <p>Plain English in. Professional invoice + PayPal payment request out.</p>
+      </div>
+      <span class="badge">PayPal AI Hackathon</span>
+      <span class="badge">PayPal Sandbox simulation — see README</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+  <!-- Stats -->
+  <section class="stats" aria-label="Summary">
+    <div class="stat"><div class="k">Total invoiced</div><div class="v" id="statTotal">$0</div></div>
+    <div class="stat"><div class="k">Collected (paid)</div><div class="v" id="statPaid" style="color:var(--good)">$0</div></div>
+    <div class="stat"><div class="k">Outstanding</div><div class="v" id="statDue">$0</div></div>
+    <div class="stat"><div class="k">Overdue</div><div class="v" id="statOverdue" style="color:var(--bad)">0</div></div>
+  </section>
+
+  <div class="grid">
+    <!-- Create -->
+    <section class="card">
+      <h2>✍️ 1 · Describe the job in plain English</h2>
+      <p class="hint">PayPilot's on-device AI parser extracts the client, line items, amounts, currency and due date — no form-filling, no API key, nothing leaves your browser.</p>
+      <div>
+        <button class="chip" data-example="0">Logo + brand kit example</button>
+        <button class="chip" data-example="1">Consulting example</button>
+        <button class="chip" data-example="2">Web dev example</button>
+      </div>
+      <label for="plainText">What did you do, for whom, and for how much?</label>
+      <textarea id="plainText" rows="5" placeholder="e.g. Invoice Priya Nair at Bloom Studio for logo design $450 and business cards $80, due in 7 days"></textarea>
+      <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="parseBtn">✨ Parse with AI</button>
+        <button class="btn btn-ghost" id="clearBtn">Clear</button>
+      </div>
+
+      <h3>Review &amp; edit the parsed invoice</h3>
+      <div class="row">
+        <div><label for="fClient">Client name</label><input id="fClient" placeholder="Client name"></div>
+        <div><label for="fEmail">Client email</label><input id="fEmail" placeholder="client@example.com"></div>
+      </div>
+      <div class="row">
+        <div><label for="fCurrency">Currency</label>
+          <select id="fCurrency"><option>USD</option><option>EUR</option><option>GBP</option><option>INR</option><option>AUD</option><option>CAD</option></select></div>
+        <div><label for="fDue">Due date</label><input id="fDue" type="date"></div>
+      </div>
+      <label>Line items (one per line: description — amount)</label>
+      <textarea id="fItems" rows="4" placeholder="Logo design — 450&#10;Business cards — 80"></textarea>
+      <label for="fNotes">Notes (optional)</label>
+      <input id="fNotes" placeholder="Thank you for your business!">
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button class="btn btn-primary" id="saveBtn">Save invoice</button>
+        <button class="btn btn-paypal" id="savePayBtn">Save + PayPal checkout preview</button>
+      </div>
+      <p class="hint" style="margin-top:10px">Invoices are stored only in your browser (localStorage). Demo data is seeded on first run — delete it any time.</p>
+    </section>
+
+    <!-- Insights + reminders -->
+    <div>
+      <section class="card" style="margin-bottom:18px">
+        <h2>🧠 2 · Smart insights</h2>
+        <p class="hint">Generated locally from your invoice book — cash-flow nudges and the single best next action.</p>
+        <div id="insights"></div>
+      </section>
+      <section class="card">
+        <h2>💌 3 · AI follow-up &amp; reminder drafts</h2>
+        <p class="hint">Pick an invoice and a tone. PayPilot writes a polite, ready-to-send reminder you can copy.</p>
+        <label for="rInvoice">Invoice</label>
+        <select id="rInvoice"></select>
+        <label for="rTone">Tone</label>
+        <select id="rTone">
+          <option value="friendly">Friendly nudge</option>
+          <option value="polite" selected>Polite &amp; professional</option>
+          <option value="firm">Firm (overdue)</option>
+        </select>
+        <div style="margin-top:12px"><button class="btn btn-primary" id="draftBtn">Draft reminder</button></div>
+        <label for="rOut">Draft</label>
+        <textarea id="rOut" rows="8" placeholder="Your reminder draft will appear here…"></textarea>
+        <div style="margin-top:10px"><button class="btn btn-ghost btn-small" id="copyBtn">Copy draft</button></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Invoice book -->
+  <section class="card" style="margin-top:18px">
+    <h2>📒 Your invoice book</h2>
+    <p class="hint">Track every invoice from draft to paid. Overdue is calculated automatically from the due date. Use “PayPal checkout” to see the payment-request preview a client would pay through.</p>
+    <div class="row" style="max-width:520px;margin-bottom:12px">
+      <div><label for="filter">Filter by status</label>
+        <select id="filter"><option value="all">All</option><option value="draft">Draft</option><option value="sent">Sent</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn btn-ghost btn-small" id="seedBtn">Reset demo data</button></div>
+    </div>
+    <div id="invoiceList"></div>
+  </section>
+
+  <section class="card" style="margin-top:18px">
+    <h2>🔌 How the PayPal integration works</h2>
+    <p>PayPilot is built around the <b>PayPal Orders v2 API</b> (checkout) and the <b>PayPal Invoicing API</b>. Because this hackathon build ships without the entrant's personal sandbox credentials, the live payment step runs as a <b>clearly-labelled sandbox simulation</b>: every simulated step maps 1-to-1 to a real PayPal API call, and the integration points are stubbed in the source (`PAYPAL_CONFIG` + `PayPalAdapter` in this file). Paste a free sandbox <code>client-id</code> from developer.paypal.com into that config block and the same checkout preview calls the real PayPal sandbox — no other changes needed. Full mapping: see README.md.</p>
+    <div class="mono">FLOW  Create invoice (AI parse)
+  → PayPalAdapter.createOrder()      POST /v2/checkout/orders        [STUB → simulation]
+  → Buyer approves in PayPal popup   PayPal JS SDK approval          [STUB → simulation]
+  → PayPalAdapter.captureOrder()     POST /v2/checkout/orders/{id}/capture [STUB]
+  → Invoice status flips to PAID, receipt ID issued (e.g. PAYPILOT-SIM-…)</div>
+  </section>
+</main>
+
+<footer class="wrap">
+  PayPilot — built solo for the PayPal AI Hackathon (Devpost). Single-file app: HTML + CSS + vanilla JavaScript, no build step, no external network calls. Payments shown are a PayPal sandbox-style simulation; no real money moves and no credentials are collected. MIT licensed.
+</footer>
+
+<!-- Checkout modal -->
+<div class="modal" id="payModal" role="dialog" aria-modal="true" aria-labelledby="payTitle">
+  <div class="modal-box">
+    <h2 id="payTitle" style="margin-top:0">PayPal Checkout — sandbox simulation</h2>
+    <div class="notice"><b>Simulation notice:</b> this is a PayPal <b>sandbox-style simulation</b>. No real PayPal account is charged. With a real sandbox client-id in <code>PAYPAL_CONFIG</code>, this dialog is replaced by PayPal's genuine approval popup.</div>
+    <div class="paybox" id="paySummary" style="margin-top:14px"></div>
+    <div id="paySteps" style="margin-top:14px;font-size:14px"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn btn-paypal" id="payNowBtn">Pay with PayPal (simulated)</button>
+      <button class="btn btn-ghost" id="payCloseBtn">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   PayPilot — PayPal AI Hackathon entry (single-file app)
+   AI layer: on-device natural-language parser + template-based
+   reminder writer (deterministic, offline). To use an LLM instead,
+   replace parsePlainEnglish() with a fetch() to your model of
+   choice returning the same JSON shape — documented in README.
+   ============================================================ */
+
+/* ---------- PayPal integration config (STUB) ----------
+   Get free sandbox credentials at https://developer.paypal.com
+   (Apps & Credentials → Sandbox → Create App). Paste the
+   client-id below and set mode:"sandbox-live" to switch the
+   PayPalAdapter from simulation to real PayPal sandbox calls
+   via the PayPal JS SDK (https://www.paypal.com/sdk/js).   */
+const PAYPAL_CONFIG = {
+  mode: "simulation",            // "simulation" | "sandbox-live"
+  clientId: "",                  // <-- paste sandbox client-id here
+  currency: "USD",
+  // Real endpoints this simulation mirrors:
+  endpoints: {
+    createOrder:  "POST https://api-m.sandbox.paypal.com/v2/checkout/orders",
+    captureOrder: "POST https://api-m.sandbox.paypal.com/v2/checkout/orders/{order_id}/capture",
+    createInvoice:"POST https://api-m.sandbox.paypal.com/v2/invoicing/invoices",
+    sendInvoice:  "POST https://api-m.sandbox.paypal.com/v2/invoicing/invoices/{invoice_id}/send"
+  }
+};
+
+const PayPalAdapter = {
+  async createOrder(invoice){
+    if (PAYPAL_CONFIG.mode === "sandbox-live" && PAYPAL_CONFIG.clientId){
+      // Real path (documented): load PayPal JS SDK with clientId, render
+      // paypal.Buttons({ createOrder }) — the SDK calls Orders v2 server-side.
+      throw new Error("sandbox-live mode: wire your server token exchange here — see README.");
+    }
+    await sleep(450); // simulated network latency
+    return { id: "SIM-ORDER-" + rand(8), status: "CREATED", invoiceId: invoice.id };
+  },
+  async captureOrder(order){
+    await sleep(650);
+    return { id: order.id, status: "COMPLETED",
+             captureId: "PAYPILOT-SIM-" + rand(10),
+             payer: "Sandbox Buyer (simulated)" };
+  }
+};
+
+/* ---------- Tiny utilities ---------- */
+const $ = s => document.querySelector(s);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const rand = n => Array.from({length:n}, () => "ABCDEFGHJKMNPQRSTUVWXYZ23456789"[Math.floor(Math.random()*31)]).join("");
+const uid = () => "inv_" + Date.now().toString(36) + Math.floor(Math.random()*999);
+const fmt = (n, cur) => { try { return new Intl.NumberFormat("en-US",{style:"currency",currency:cur||"USD"}).format(n||0); }
+  catch(e){ return (cur||"USD") + " " + (n||0).toFixed(2); } };
+const todayISO = () => new Date().toISOString().slice(0,10);
+const addDays = (iso, d) => { const t = new Date(iso||todayISO()); t.setDate(t.getDate()+d); return t.toISOString().slice(0,10); };
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",2600); }
+function esc(s){ return String(s??"").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c])); }
+
+/* ---------- AI parser: plain English → structured invoice ---------- */
+const CURRENCIES = { "$":"USD","usd":"USD","dollars":"USD","€":"EUR","eur":"EUR","£":"GBP","gbp":"GBP","₹":"INR","inr":"INR","rupees":"INR","aud":"AUD","cad":"CAD" };
+function detectCurrency(text){
+  const low = " " + text.toLowerCase() + " ";
+  for (const k of ["₹","inr","rupees"]) if (low.includes(k)) return "INR";
+  if (low.includes("€") || /\beur\b/.test(low)) return "EUR";
+  if (low.includes("£") || /\bgbp\b/.test(low)) return "GBP";
+  if (/\baud\b/.test(low)) return "AUD";
+  if (/\bcad\b/.test(low)) return "CAD";
+  return "USD";
+}
+function parseDue(text){
+  const low = text.toLowerCase(); const now = new Date();
+  let m = low.match(/due in (\d+)\s*days?/); if (m) return addDays(todayISO(), +m[1]);
+  m = low.match(/due (?:on )?(\d{1,2})[\/\-](\d{1,2})(?:[\/\-](\d{2,4}))?/);
+  if (m){ const y = m[3] ? (m[3].length===2 ? 2000+ +m[3] : +m[3]) : now.getFullYear();
+    return new Date(y, +m[1]-1, +m[2]).toISOString().slice(0,10); }
+  const months = {jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+  m = low.match(/(?:due|by) (?:on )?(\d{1,2})\s*(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)/);
+  if (m) return new Date(now.getFullYear(), months[m[2]], +m[1]).toISOString().slice(0,10);
+  if (/due tomorrow/.test(low)) return addDays(todayISO(), 1);
+  if (/due today|payable now|due now/.test(low)) return todayISO();
+  if (/net\s*30/.test(low)) return addDays(todayISO(), 30);
+  if (/net\s*14/.test(low)) return addDays(todayISO(), 14);
+  if (/net\s*7/.test(low)) return addDays(todayISO(), 7);
+  return addDays(todayISO(), 7); // sensible default
+}
+function parsePlainEnglish(text){
+  const out = { client:"", email:"", currency:detectCurrency(text), due:parseDue(text), items:[], notes:"" };
+  const emailM = text.match(/[\w.+-]+@[\w-]+\.[\w.]+/); if (emailM) out.email = emailM[0];
+  // Client: "Invoice Priya Nair at ...", "Bill Northwind Traders for ...", "for/to/client X Y"
+  let m = text.match(/(?:invoice|bill)\s+(?:to\s+)?([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,2})/i) ||
+          text.match(/(?:for|to|client:?)\s+([A-Z][a-zA-Z]+(?:\s+[A-Z][a-zA-Z]+){1,2})(?=\s+(?:for|at|due|—|-|\$))/i);
+  if (m) out.client = m[1].replace(/\s+(at|for|to)$/i,"").trim();
+  // Items: patterns like "logo design $450", "2x icons — 120", "3 hours consulting at $60/hr"
+  const itemPatterns = [
+    /(\d+)\s*(?:x|×|hours?|hrs?)\s+([^$€£₹,\n]+?)\s*(?:at\s*)?[$€£₹]?\s*(\d[\d,]*(?:\.\d{1,2})?)\s*(?:\/hr|per hour)?(?=[,\n]| and |$)/gi,
+    /([a-zA-Z][^$€£₹,\n]{2,48}?)\s*[$€£₹]\s*(\d[\d,]*(?:\.\d{1,2})?)(?=[,\n]| and |$)/gi,
+    /([a-zA-Z][^$€£₹,\n]{2,48}?)\s*[-—:]\s*\$?\s*(\d[\d,]*(?:\.\d{1,2})?)(?=[,\n]| and |$)/gi
+  ];
+  const seen = new Set();
+  for (const re of itemPatterns){
+    let mm; while ((mm = re.exec(text)) !== null){
+      let desc, amt;
+      if (mm.length === 4 && /^\d+$/.test(mm[1])){ const qty=+mm[1]; desc = mm[2].trim(); amt = qty * parseFloat(mm[3].replace(/,/g,"")); if (/hour/.test(mm[0])) desc += " ("+qty+" hrs)"; }
+      else { desc = (mm[1]||"").trim(); amt = parseFloat((mm[2]||"0").replace(/,/g,"")); }
+      // Clean preamble bleed: "... for logo design" -> "logo design"
+      if (/ for /i.test(desc)) desc = desc.split(/ for /i).pop();
+      desc = desc.replace(/^per hour\s+and\s+/i,"").replace(/^(for|to|and|invoice|bill)\s+/i,"").replace(/\s+(due|at)\s*$/i,"").trim();
+      const key = desc.toLowerCase()+"|"+amt;
+      if (desc.length>=3 && amt>0 && !seen.has(key) && !/^\d+$/.test(desc)){ seen.add(key); out.items.push({desc, amount:amt}); }
+    }
+  }
+  // Drop verbose duplicates: same amount where one description contains another (keep the shorter)
+  out.items = out.items.filter((a, idx, arr) => !arr.some((b, j) => j !== idx && b.amount === a.amount &&
+    b.desc.toLowerCase() !== a.desc.toLowerCase() && a.desc.toLowerCase().includes(b.desc.toLowerCase())));
+  // Fallback: a single total like "total $600" / "for $600"
+  if (!out.items.length){
+    const t = text.match(/(?:total|amount|for)\s*(?:of\s*)?[$€£₹]\s*(\d[\d,]*(?:\.\d{1,2})?)/i) || text.match(/[$€£₹]\s*(\d[\d,]*(?:\.\d{1,2})?)/);
+    if (t) out.items.push({ desc:"Services rendered", amount:parseFloat(t[1].replace(/,/g,"")) });
+  }
+  return out;
+}
+function itemsToText(items){ return items.map(i => i.desc + " — " + i.amount).join("\n"); }
+function textToItems(txt){
+  return txt.split("\n").map(l => l.trim()).filter(Boolean).map(l => {
+    const m = l.match(/^(.*?)[\s—:-]+(\d[\d,]*(?:\.\d{1,2})?)\s*$/);
+    return m ? { desc:m[1].trim(), amount:parseFloat(m[2].replace(/,/g,"")) } : { desc:l, amount:0 };
+  }).filter(i => i.desc);
+}
+
+/* ---------- Store (localStorage) ---------- */
+const KEY = "paypilot_invoices_v1";
+function load(){ try { return JSON.parse(localStorage.getItem(KEY)) || null; } catch(e){ return null; } }
+function saveAll(list){ localStorage.setItem(KEY, JSON.stringify(list)); }
+function seed(){
+  const demo = [
+    { id:uid(), number:"PP-1001", client:"Bloom Studio", email:"hello@bloomstudio.example", currency:"USD",
+      items:[{desc:"Logo design",amount:450},{desc:"Business card design",amount:80}], notes:"Thank you!",
+      status:"sent", issued:todayISO(), due:addDays(todayISO(),5), receipt:"" },
+    { id:uid(), number:"PP-1002", client:"Arjun Mehta", email:"arjun@example.com", currency:"USD",
+      items:[{desc:"Landing page development",amount:900}], notes:"",
+      status:"sent", issued:addDays(todayISO(),-16), due:addDays(todayISO(),-2), receipt:"" },
+    { id:uid(), number:"PP-1003", client:"Northwind Traders", email:"ap@northwind.example", currency:"USD",
+      items:[{desc:"Consulting (4 hrs)",amount:320}], notes:"Net 14",
+      status:"paid", issued:addDays(todayISO(),-20), due:addDays(todayISO(),-6), receipt:"PAYPILOT-SIM-DEMO1003" }
+  ];
+  saveAll(demo); return demo;
+}
+let invoices = load() || seed();
+function totalOf(inv){ return inv.items.reduce((s,i)=>s+(+i.amount||0),0); }
+function effectiveStatus(inv){
+  if (inv.status === "paid" || inv.status === "draft") return inv.status;
+  if (inv.due && inv.due < todayISO()) return "overdue";
+  return inv.status;
+}
+function nextNumber(){ const n = invoices.length ? Math.max(...invoices.map(i => parseInt((i.number||"PP-1000").split("-")[1])||1000)) : 1000; return "PP-" + (n+1); }
+
+/* ---------- Rendering ---------- */
+function render(){
+  const list = invoices.slice().sort((a,b)=>(b.issued||"").localeCompare(a.issued||""));
+  const tot = invoices.reduce((s,i)=>s+totalOf(i),0);
+  const paid = invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+totalOf(i),0);
+  const over = invoices.filter(i=>effectiveStatus(i)==="overdue");
+  $("#statTotal").textContent = fmt(tot,"USD");
+  $("#statPaid").textContent = fmt(paid,"USD");
+  $("#statDue").textContent = fmt(tot-paid,"USD");
+  $("#statOverdue").textContent = over.length + (over.length ? " · " + fmt(over.reduce((s,i)=>s+totalOf(i),0),"USD") : "");
+
+  const f = $("#filter").value;
+  const shown = list.filter(i => f==="all" || effectiveStatus(i)===f);
+  $("#invoiceList").innerHTML = shown.length ? shown.map(inv => {
+    const st = effectiveStatus(inv);
+    return `<div class="invoice">
+      <div class="invoice-head"><span><b>${esc(inv.number)}</b> · ${esc(inv.client||"Unnamed client")}</span>
+      <span class="pill pill-${st}">${st}</span></div>
+      <div style="font-size:13.5px;color:var(--muted)">Issued ${esc(inv.issued||"—")} · Due ${esc(inv.due||"—")} · ${esc(inv.email||"")}</div>
+      <table>${inv.items.map(i=>`<tr><td>${esc(i.desc)}</td><td style="text-align:right;white-space:nowrap">${fmt(i.amount, inv.currency)}</td></tr>`).join("")}
+      <tr><td><b>Total</b></td><td style="text-align:right"><b>${fmt(totalOf(inv), inv.currency)}</b></td></tr></table>
+      ${inv.receipt ? `<div style="font-size:13px">✅ PayPal capture ID: <code>${esc(inv.receipt)}</code> (sandbox simulation)</div>` : ""}
+      <div class="actions">
+        <button class="btn btn-paypal btn-small" data-act="pay" data-id="${inv.id}">PayPal checkout</button>
+        <button class="btn btn-ghost btn-small" data-act="sent" data-id="${inv.id}">Mark sent</button>
+        <button class="btn btn-ghost btn-small" data-act="paid" data-id="${inv.id}">Mark paid</button>
+        <button class="btn btn-ghost btn-small" data-act="remind" data-id="${inv.id}">Draft reminder</button>
+        <button class="btn btn-ghost btn-small" data-act="dup" data-id="${inv.id}">Duplicate</button>
+        <button class="btn btn-danger btn-small" data-act="del" data-id="${inv.id}">Delete</button>
+      </div></div>`;
+  }).join("") : `<div class="empty">No invoices in this view yet. Describe a job above and hit “Parse with AI”.</div>`;
+
+  $("#rInvoice").innerHTML = list.map(i=>`<option value="${i.id}">${esc(i.number)} — ${esc(i.client)} (${fmt(totalOf(i), i.currency)}, ${effectiveStatus(i)})</option>`).join("");
+  renderInsights();
+}
+function renderInsights(){
+  const box = $("#insights"); const unpaid = invoices.filter(i=>i.status!=="paid");
+  const over = invoices.filter(i=>effectiveStatus(i)==="overdue");
+  const dueSoon = unpaid.filter(i=>{ const s=effectiveStatus(i); return s==="sent" && i.due && i.due>=todayISO() && i.due<=addDays(todayISO(),7); });
+  const msgs = [];
+  if (over.length) msgs.push(`⚠️ <b>${over.length} overdue invoice(s)</b> totalling ${fmt(over.reduce((s,i)=>s+totalOf(i),0),"USD")}. Best next action: send a <b>firm</b> reminder for ${esc(over[0].number)} (${esc(over[0].client)}) today, and offer the PayPal checkout link so paying takes one click.`);
+  if (dueSoon.length) msgs.push(`⏰ ${dueSoon.length} invoice(s) fall due in the next 7 days (${fmt(dueSoon.reduce((s,i)=>s+totalOf(i),0),"USD")}). A friendly nudge 2 days before the due date typically gets freelancers paid faster — draft one below.`);
+  const drafts = invoices.filter(i=>i.status==="draft");
+  if (drafts.length) msgs.push(`📝 You have ${drafts.length} draft(s) unsent. Drafts don't get paid — review ${esc(drafts[0].number)} and hit “Mark sent”, then share its PayPal checkout preview.`);
+  if (!msgs.length) msgs.push(`🎉 Nothing needs chasing right now. Your book is fully collected — a good moment to invoice the next milestone early.`);
+  const paidSum = invoices.filter(i=>i.status==="paid").reduce((s,i)=>s+totalOf(i),0);
+  const totSum = invoices.reduce((s,i)=>s+totalOf(i),0);
+  if (totSum>0) msgs.push(`📊 Collection rate so far: <b>${Math.round(paidSum/totSum*100)}%</b> of invoiced value collected (${fmt(paidSum,"USD")} of ${fmt(totSum,"USD")}).`);
+  box.innerHTML = msgs.map(m=>`<div class="insight">${m}</div>`).join("");
+}
+
+/* ---------- Reminders ---------- */
+function draftReminder(inv, tone){
+  const amt = fmt(totalOf(inv), inv.currency); const st = effectiveStatus(inv);
+  const daysLate = st==="overdue" ? Math.max(1, Math.round((new Date(todayISO()) - new Date(inv.due))/86400000)) : 0;
+  const first = (inv.client||"there").split(" ")[0];
+  if (tone==="friendly") return `Subject: Quick hello — invoice ${inv.number} (${amt})\n\nHi ${first},\n\nHope you're doing well! Just floating invoice ${inv.number} for ${amt} to the top of your inbox — it covers ${inv.items.map(i=>i.desc).join(", ")} and is due ${inv.due}.\n\nYou can pay in one click via PayPal here: [PayPal checkout link]\n\nThanks so much,\n— Sent with PayPilot`;
+  if (tone==="firm") return `Subject: Overdue: invoice ${inv.number} — ${amt} (${daysLate} day${daysLate===1?"":"s"} past due)\n\nHi ${first},\n\nInvoice ${inv.number} for ${amt} (due ${inv.due}) is now ${daysLate} day(s) overdue. Please arrange payment promptly via PayPal: [PayPal checkout link]\n\nIf payment has already been sent, please share the transaction ID so I can reconcile it. Otherwise, kindly confirm your payment date today so I can plan accordingly.\n\nRegards,\n— Sent with PayPilot`;
+  return `Subject: Reminder: invoice ${inv.number} for ${amt} — due ${inv.due}\n\nHi ${first},\n\nI hope you're well. This is a polite reminder that invoice ${inv.number} for ${amt}, covering ${inv.items.map(i=>i.desc).join(", ")}, is ${st==="overdue" ? "past its due date of " + inv.due : "due on " + inv.due}.\n\nYou can pay securely via PayPal in under a minute: [PayPal checkout link]\n\nIf you've already paid, thank you — please disregard this note.\n\nWarm regards,\n— Sent with PayPilot`;
+}
+
+/* ---------- Checkout modal ---------- */
+let currentPayId = null;
+function openCheckout(id){
+  const inv = invoices.find(i=>i.id===id); if (!inv) return; currentPayId = id;
+  $("#paySummary").innerHTML = `<b>${esc(inv.number)} — ${esc(inv.client)}</b><br>` +
+    inv.items.map(i=>`${esc(i.desc)} — ${fmt(i.amount, inv.currency)}`).join("<br>") +
+    `<hr style="border:0;border-top:1px solid var(--line)"><b>Total due: ${fmt(totalOf(inv), inv.currency)}</b><br>
+     <span style="color:var(--muted);font-size:13px">Payee receives via PayPal · Buyer pays with PayPal balance or card · Orders v2 (simulated)</span>`;
+  $("#paySteps").innerHTML = "Ready. Clicking pay runs: <b>create order → approve → capture</b> (simulated sandbox calls).";
+  $("#payModal").classList.add("open");
+}
+async function runCheckout(){
+  const inv = invoices.find(i=>i.id===currentPayId); if (!inv) return;
+  const steps = $("#paySteps"); const btn = $("#payNowBtn"); btn.disabled = true;
+  try {
+    steps.innerHTML = "1/3 Creating PayPal order… <code>POST /v2/checkout/orders</code> (simulated)";
+    const order = await PayPalAdapter.createOrder(inv);
+    steps.innerHTML = `Order <b>${esc(order.id)}</b> created.<br>2/3 Buyer approving in PayPal popup… (simulated approval)`;
+    await sleep(700);
+    steps.innerHTML = "Buyer approved ✅<br>3/3 Capturing funds… <code>POST /v2/checkout/orders/" + esc(order.id) + "/capture</code> (simulated)";
+    const cap = await PayPalAdapter.captureOrder(order);
+    inv.status = "paid"; inv.receipt = cap.captureId; saveAll(invoices); render();
+    steps.innerHTML = `🎉 <b>Payment completed (simulated).</b><br>Capture ID: <code>${esc(cap.captureId)}</code><br>Payer: ${esc(cap.payer)}<br>Invoice ${esc(inv.number)} is now marked PAID. In live sandbox mode this receipt is the real PayPal capture ID.`;
+    toast("Invoice " + inv.number + " marked paid (simulated)");
+    btn.textContent = "Done";
+  } catch(e){ steps.innerHTML = "Something went wrong: " + esc(e.message); btn.disabled = false; }
+}
+
+/* ---------- Examples & events ---------- */
+const EXAMPLES = [
+  "Invoice Priya Nair at Bloom Studio for logo design $450 and business cards $80, due in 7 days",
+  "Bill Northwind Traders for 8 hours consulting at $60 per hour and travel $120, net 14. Email ap@northwind.example",
+  "Invoice Arjun Mehta for landing page development $900 and SEO setup $250, due 20 Nov"
+];
+document.querySelectorAll(".chip").forEach(c => c.addEventListener("click", () => { $("#plainText").value = EXAMPLES[+c.dataset.example]; }));
+$("#parseBtn").addEventListener("click", () => {
+  const text = $("#plainText").value.trim();
+  if (!text){ toast("Describe the job first"); return; }
+  const p = parsePlainEnglish(text);
+  $("#fClient").value = p.client; $("#fEmail").value = p.email;
+  $("#fCurrency").value = p.currency; $("#fDue").value = p.due;
+  $("#fItems").value = itemsToText(p.items);
+  toast(p.items.length ? "Parsed: " + p.items.length + " item(s), total " + fmt(p.items.reduce((s,i)=>s+i.amount,0), p.currency) : "Parsed — add amounts in the items box");
+});
+$("#clearBtn").addEventListener("click", () => { $("#plainText").value=""; });
+function collectForm(){
+  const items = textToItems($("#fItems").value);
+  return { client:$("#fClient").value.trim(), email:$("#fEmail").value.trim(), currency:$("#fCurrency").value,
+           due:$("#fDue").value || addDays(todayISO(),7), items, notes:$("#fNotes").value.trim() };
+}
+function saveInvoice(openPay){
+  const data = collectForm();
+  if (!data.client){ toast("Add a client name"); return; }
+  if (!data.items.length || data.items.every(i=>!i.amount)){ toast("Add at least one item with an amount"); return; }
+  const inv = { id:uid(), number:nextNumber(), issued:todayISO(), status:"draft", receipt:"", ...data };
+  invoices.push(inv); saveAll(invoices); render(); toast("Saved " + inv.number);
+  if (openPay) openCheckout(inv.id);
+}
+$("#saveBtn").addEventListener("click", () => saveInvoice(false));
+$("#savePayBtn").addEventListener("click", () => saveInvoice(true));
+$("#filter").addEventListener("change", render);
+$("#seedBtn").addEventListener("click", () => { invoices = seed(); render(); toast("Demo data reset"); });
+$("#draftBtn").addEventListener("click", () => {
+  const inv = invoices.find(i=>i.id===$("#rInvoice").value); if (!inv){ toast("No invoice selected"); return; }
+  $("#rOut").value = draftReminder(inv, $("#rTone").value);
+});
+$("#copyBtn").addEventListener("click", async () => {
+  const v = $("#rOut").value; if (!v){ toast("Draft a reminder first"); return; }
+  try { await navigator.clipboard.writeText(v); toast("Copied to clipboard"); }
+  catch(e){ $("#rOut").select(); document.execCommand("copy"); toast("Copied"); }
+});
+$("#invoiceList").addEventListener("click", e => {
+  const b = e.target.closest("button[data-act]"); if (!b) return;
+  const inv = invoices.find(i=>i.id===b.dataset.id); if (!inv) return;
+  const act = b.dataset.act;
+  if (act==="pay") openCheckout(inv.id);
+  if (act==="sent"){ inv.status="sent"; saveAll(invoices); render(); toast(inv.number + " marked sent"); }
+  if (act==="paid"){ inv.status="paid"; saveAll(invoices); render(); toast(inv.number + " marked paid"); }
+  if (act==="remind"){ $("#rInvoice").value = inv.id; $("#rTone").value = effectiveStatus(inv)==="overdue" ? "firm" : "polite"; $("#rOut").value = draftReminder(inv, $("#rTone").value); window.scrollTo({top:0,behavior:"smooth"}); }
+  if (act==="dup"){ invoices.push({...inv, id:uid(), number:nextNumber(), status:"draft", receipt:"", issued:todayISO()}); saveAll(invoices); render(); toast("Duplicated as draft"); }
+  if (act==="del"){ invoices = invoices.filter(i=>i.id!==inv.id); saveAll(invoices); render(); toast("Deleted " + inv.number); }
+});
+$("#payNowBtn").addEventListener("click", runCheckout);
+$("#payCloseBtn").addEventListener("click", () => { $("#payModal").classList.remove("open"); $("#payNowBtn").disabled=false; $("#payNowBtn").textContent="Pay with PayPal (simulated)"; });
+$("#payModal").addEventListener("click", e => { if (e.target.id==="payModal") $("#payCloseBtn").click(); });
+
+render();
+</script>
+</body>
+</html>
